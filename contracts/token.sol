@@ -12,7 +12,7 @@ contract Token is Ownable, ERC20 {
 
     // TODO: add private members as needed!
     // TODO: if you create private member, initialize it in the constructor
-    bool public mintingEnabled = true;
+    bool public mintingDisabled  = false;
     
     constructor() ERC20(_name, _symbol) {}
 
@@ -28,7 +28,7 @@ contract Token is Ownable, ERC20 {
         onlyOwner
     {
         /******* TODO: Implement this function *******/
-        require(mintingEnabled, "Minting is disabled");
+        require(!mintingDisabled , "Minting is disabled");
         _mint(msg.sender, amount);
     }
 
@@ -40,6 +40,6 @@ contract Token is Ownable, ERC20 {
         onlyOwner
     {
         /******* TODO: Implement this function *******/
-        mintingEnabled = false;
+        mintingDisabled = true;
     }
 }

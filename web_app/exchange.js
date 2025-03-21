@@ -6,7 +6,7 @@
 const provider = new ethers.providers.JsonRpcProvider("http://localhost:8545");
 var defaultAccount;
 
-const exchange_name = '';             // TODO: fill in the name of your exchange
+const exchange_name = 'AnnezSwap';             // TODO: fill in the name of your exchange
 
 const token_name = 'Annez';                // TODO: replace with name of your token
 const token_symbol = 'Ann';              // TODO: replace with symbol for your token
@@ -410,7 +410,18 @@ const exchange_abi = [
     "type": "event"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxExchangeRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minExchangeRate",
+        "type": "uint256"
+      }
+    ],
     "name": "addLiquidity",
     "outputs": [],
     "stateMutability": "payable",
@@ -492,7 +503,18 @@ const exchange_abi = [
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxExchangeRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minExchangeRate",
+        "type": "uint256"
+      }
+    ],
     "name": "removeAllLiquidity",
     "outputs": [],
     "stateMutability": "payable",
@@ -503,6 +525,16 @@ const exchange_abi = [
       {
         "internalType": "uint256",
         "name": "amountETH",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxExchangeRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minExchangeRate",
         "type": "uint256"
       }
     ],
@@ -519,7 +551,13 @@ const exchange_abi = [
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "maxSlippageRate",
+        "type": "uint256"
+      }
+    ],
     "name": "swapETHForTokens",
     "outputs": [],
     "stateMutability": "payable",
@@ -530,6 +568,11 @@ const exchange_abi = [
       {
         "internalType": "uint256",
         "name": "amountTokens",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxSlippageRate",
         "type": "uint256"
       }
     ],
@@ -622,27 +665,82 @@ async function getPoolState() {
 // Note: maxSlippagePct will be passed in as an int out of 100. 
 // Be sure to divide by 100 for your calculations.
 
+const multiplier = ethers.BigNumber.from(10).pow(12);
+
 /*** ADD LIQUIDITY ***/
 async function addLiquidity(amountEth, maxSlippagePct) {
     /** TODO: ADD YOUR CODE HERE **/
+    if (amountEth < 0) {
+      console.log("Error: Invalid liquidity amount.");
+      return;
+    }
+    const poolState = await getPoolState();
+    const exchangeRate = ethers.BigNumber.from(poolState.token_reserves).mul(multiplier).div(poolState.eth_reserves);
+    const maxExchangeRate = exchangeRate.mul(100 + maxSlippagePct).div(100);
+    const minExchangeRate = exchangeRate.mul(100 - maxSlippagePct).div(100);
+    await token_contract.connect(provider.getSigner(defaultAccount)).increaseAllowance(exchange_address, ethers.utils.parseEther(amountEth));
+    await exchange_contract.connect(provider.getSigner(defaultAccount)).addLiquidity(
+      maxExchangeRate, minExchangeRate, {value: ethers.utils.parseEther(amountEth)}
+    );
 }
 
 /*** REMOVE LIQUIDITY ***/
 async function removeLiquidity(amountEth, maxSlippagePct) {
     /** TODO: ADD YOUR CODE HERE **/
+    if (amountEth <= 0) {
+      console.log("Error: Invalid liquidity amount.");
+      return;
+    }
+
+    const poolState = await getPoolState();
+    const exchangeRate = ethers.BigNumber.from(poolState.token_reserves).mul(multiplier).div(poolState.eth_reserves);
+    const maxExchangeRate = exchangeRate.mul(100 + maxSlippagePct).div(100);
+    const minExchangeRate = exchangeRate.mul(100 - maxSlippagePct).div(100);
+
+    await exchange_contract.connect(provider.getSigner(defaultAccount)).removeLiquidity(ethers.utils.parseEther(amountEth), maxExchangeRate, minExchangeRate);
 }
 
 async function removeAllLiquidity(maxSlippagePct) {
     /** TODO: ADD YOUR CODE HERE **/
+    const poolState = await getPoolState();
+    const exchangeRate = ethers.BigNumber.from(poolState.token_reserves).mul(multiplier).div(poolState.eth_reserves);
+    const maxExchangeRate = exchangeRate.mul(100 + maxSlippagePct).div(100);
+    const minExchangeRate = exchangeRate.mul(100 - maxSlippagePct).div(100);
+    await exchange_contract.connect(provider.getSigner(defaultAccount)).removeAllLiquidity(maxExchangeRate, minExchangeRate);
 }
 
 /*** SWAP ***/
 async function swapTokensForETH(amountToken, maxSlippagePct) {
     /** TODO: ADD YOUR CODE HERE **/
+    if(amountToken < 0){
+      console.log("Error: cannot swap negative amount.");
+      return;
+    }
+
+    const poolState = await getPoolState();
+    const exchangeRate = ethers.BigNumber.from(poolState.token_reserves).mul(multiplier).div(poolState.eth_reserves);
+    const maxExchangeRate = exchangeRate.mul(100 + maxSlippagePct).div(100);
+    // const minExchangeRate = exchangeRate.mul(100 - maxSlippagePct).div(100);
+    await token_contract.connect(provider.getSigner(defaultAccount)).increaseAllowance(exchange_address, ethers.utils.parseEther(amountToken));
+    await exchange_contract.connect(provider.getSigner(defaultAccount)).swapTokensForETH(ethers.utils.parseEther(amountToken), maxExchangeRate);
 }
+
 
 async function swapETHForTokens(amountEth, maxSlippagePct) {
     /** TODO: ADD YOUR CODE HERE **/
+    if (amountEth < 0) {
+      console.log("Error: cannot swap non-positive amount.");
+      return;
+    }
+    
+    const poolState = await getPoolState();
+    const exchangeRate = ethers.BigNumber.from(poolState.token_reserves).mul(multiplier).div(poolState.eth_reserves);
+    const maxExchangeRate = exchangeRate.mul(100 + maxSlippagePct).div(100);
+    // const minExchangeRate = exchangeRate.mul(100 - maxSlippagePct).div(100);
+    
+    await exchange_contract.connect(signer).swapETHForTokens(
+        maxExchangeRate, { value: ethers.utils.parseEther(amountEth) }
+  );
 }
 
 // =============================================================================
@@ -759,7 +857,7 @@ const sanityCheck = async function() {
       await swapETHForTokens("100", "1");
       var state1 = await getPoolState();
       // TODO: remove this line
-      console.log(state1)
+      // console.log(state1)
       var expected_tokens_received = 100 * start_state.token_eth_rate;
       var user_tokens1 = await token_contract.connect(provider.getSigner(defaultAccount)).balanceOf(defaultAccount);
       score += check("Testing simple exchange of ETH to token", swap_fee[0],
@@ -770,7 +868,7 @@ const sanityCheck = async function() {
       await swapTokensForETH("90", "1");
       var state2 = await getPoolState();
       // TODO: remove this line
-      console.log(state2)
+      // console.log(state2)
       var expected_eth_received = 90 * state1.eth_token_rate;
       var user_tokens2 = await token_contract.connect(provider.getSigner(defaultAccount)).balanceOf(defaultAccount);
       score += check("Test simple exchange of token to ETH", swap_fee[0], 
@@ -786,7 +884,7 @@ const sanityCheck = async function() {
       var expected_tokens_added = 100 * state2.token_eth_rate;
       var state3 = await getPoolState();
       // TODO: remove this line
-      console.log(state3)
+      // console.log(state3)
       var user_tokens3 = await token_contract.connect(provider.getSigner(defaultAccount)).balanceOf(defaultAccount);
       score += check("Test adding liquidity", swap_fee[0], 
         state3.eth_liquidity === (state2.eth_liquidity + 100) &&
