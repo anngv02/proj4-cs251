@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "D:\\proj4\\contracts\\exchange.sol": {
-      "lastModificationDate": 1742533215815,
-      "contentHash": "56e11cb10f2f38672c048496730bab7a",
+      "lastModificationDate": 1742734514078,
+      "contentHash": "9f12fe9bbfbf70658dcbbdbc6cbad2d9",
       "sourceName": "contracts/exchange.sol",
       "solcConfig": {
         "version": "0.8.17",
@@ -40,8 +40,8 @@
       ]
     },
     "D:\\proj4\\contracts\\token.sol": {
-      "lastModificationDate": 1742367032669,
-      "contentHash": "716869541a710be6027c7e26d65aa2d9",
+      "lastModificationDate": 1742538207208,
+      "contentHash": "ded5a90ab5d8921d6dff51652a671a5e",
       "sourceName": "contracts/token.sol",
       "solcConfig": {
         "version": "0.8.17",
@@ -331,8 +331,8 @@
       ]
     },
     "D:\\proj4\\contracts\\Lock.sol": {
-      "lastModificationDate": 1742531276996,
-      "contentHash": "c2b80a47c579c4ac9d0a29cee1bfb214",
+      "lastModificationDate": 1742729595664,
+      "contentHash": "59d130b4e699d45685da7985b82645f9",
       "sourceName": "contracts/Lock.sol",
       "solcConfig": {
         "version": "0.8.17",
@@ -357,9 +357,7 @@
           }
         }
       },
-      "imports": [
-        "hardhat/console.sol"
-      ],
+      "imports": [],
       "versionPragmas": [
         "^0.8.9"
       ],

@@ -38,7 +38,9 @@ contract TokenExchange is Ownable {
     // Constant: x * y = k
     uint private k;
 
-    uint private multiplier = 10**12;
+    uint private multiplier = 10**5;
+
+    uint private ten_pow_eighteen = 10 ** 18;
 
     constructor() {}
 
@@ -103,6 +105,10 @@ contract TokenExchange is Ownable {
     // ============================================================
     
     /* ========================= Liquidity Provider Functions =========================  */ 
+    // Function caculateDentaToken: Calculate the amount of token to send to the user
+    function caculateDentaToken(uint denta_eth) private view returns (uint) {
+        return (denta_eth * token.balanceOf(address(this))) / address(this).balance;
+    }
 
     // Function addLiquidity: Adds liquidity given a supply of ETH (sent to the contract as msg.value).
     // You can change the inputs, or the scope of your function, as needed.
@@ -112,24 +118,21 @@ contract TokenExchange is Ownable {
     {
        /******* TODO: Implement this function *******/
         require(msg.value > 0, "Must send ETH");// Require the user sends ETH
-        uint ethAmount = msg.value; // Get the amount of ETH sent
-        uint tokenAmount = (token_reserves * ethAmount) / eth_reserves;// Calculate the amount of tokens to send
-        require(token.balanceOf(msg.sender) >= tokenAmount, "Insufficient tokens");// Require the user has enough tokens
+        uint denta_token = caculateDentaToken(msg.value);// Calculate the amount of tokens to send
+        require(token.balanceOf(msg.sender) >= denta_token, "Insufficient tokens");// Require the user has enough tokens
         
-        uint exchangeRate = (ethAmount * multiplier) / tokenAmount; // Calculate the exchange rate
+        uint exchangeRate = (token_reserves * multiplier * ten_pow_eighteen) / eth_reserves; // Calculate the exchange rate
         require(exchangeRate >= minExchangeRate, "Exchange rate too low");// Require the exchange rate is above the minimum
         require(exchangeRate <= maxExchangeRate, "Exchange rate too high");// Require the exchange rate is below the maximum
-        token.transferFrom(msg.sender, address(this), tokenAmount); // Transfer the tokens to the contract
-        uint lpShare = (total_shares * ethAmount) / eth_reserves; // Calculate the amount of shares to give to the user
+        token.transferFrom(msg.sender, address(this), denta_token); // Transfer the tokens to the contract
+        uint share = (total_shares * msg.value) / eth_reserves; // Calculate the amount of shares to give to the user
 
         // Update the contract state
-        lps[msg.sender] += lpShare;
-        total_shares += lpShare; 
-        eth_reserves += ethAmount;
-        token_reserves += tokenAmount; 
+        lps[msg.sender] += share;
+        total_shares += share; 
+        eth_reserves += msg.value;
+        token_reserves += denta_token;
         k = token_reserves * eth_reserves; // Update the constant k
-
-        // emit LiquidityAdded(msg.sender, ethAmount, tokenAmount);
     }
 
 
@@ -142,27 +145,36 @@ contract TokenExchange is Ownable {
         /******* TODO: Implement this function *******/
         require(amountETH > 0, "Must specify an amount of ETH to remove");// Require the user specifies an amount of ETH to remove
         require(lps[msg.sender] > 0, "User is not a liquidity provider");// Require the user is a liquidity provider
-        require(eth_reserves >= amountETH, "Insufficient ETH reserves");// Require the contract has enough ETH reserves
+        require(eth_reserves - 1 >= amountETH, "Insufficient ETH reserves");// Require the contract has enough ETH reserves
 
         uint share = (total_shares * amountETH) / eth_reserves; // Calculate the amount of shares the user is entitled to
         require(share <= lps[msg.sender], "Not enough liquidity owned"); // Require the user has enough shares
         
-        uint tokenAmount = (token_reserves * amountETH) / eth_reserves; // Calculate the amount of tokens the user is entitled to
-        uint exchangeRate = (eth_reserves * multiplier) / tokenAmount; // Calculate the exchange rate
+        uint denta_token = caculateDentaToken(msg.value); // Calculate the amount of tokens the user is entitled to
+        uint exchangeRate = (token_reserves * multiplier * ten_pow_eighteen) / eth_reserves; // Calculate the exchange rate
         require(exchangeRate >= minExchangeRate, "Exchange rate too low");// Require the exchange rate is above the minimum
         require(exchangeRate <= maxExchangeRate, "Exchange rate too high");// Require the exchange rate is below the maximum
-        require(token.balanceOf(address(this)) >= tokenAmount, "Insufficient tokens"); // Require the contract has enough tokens
+        require(token.balanceOf(address(this)) >= denta_token, "Insufficient tokens"); // Require the contract has enough tokens
         
+        // Calculate the benefit for the user
+        uint diff_eth = address(this).balance - eth_reserves;
+        uint diff_token = token.balanceOf(address(this)) - token_reserves;
+        uint benefit_eth = (diff_eth * share) / total_shares;
+        uint benefit_token = (diff_token * share) / total_shares;
+
+
         //Update the contract state
         lps[msg.sender] -= share;
         total_shares -= share;
         eth_reserves -= amountETH;
-        token_reserves -= tokenAmount;
+        token_reserves -= denta_token;
         
-        // Transfer the tokens and ETH to the user
-        token.transfer(msg.sender, tokenAmount);
-        payable(msg.sender).transfer(amountETH);
         k = token_reserves * eth_reserves; // Update the constant k
+
+        // Transfer the tokens and ETH to the user
+        token.transfer(msg.sender, denta_token + benefit_token);
+        payable(msg.sender).transfer( amountETH + benefit_eth);
+
 
         // emit LiquidityRemoved(msg.sender, amountETH, tokenAmount);
     }
@@ -174,29 +186,10 @@ contract TokenExchange is Ownable {
         payable
     {
         /******* TODO: Implement this function *******/
-        uint userShare = lps[msg.sender];// Get the amount of shares the user is entitled to
-        require(userShare > 0, "No liquidity to remove");// Require the user has liquidity to remove
-        
-        uint exchangeRate = (eth_reserves * multiplier) / token_reserves; // Calculate the exchange rate
-        require(exchangeRate >= minExchangeRate, "Exchange rate too low");// Require the exchange rate is above the minimum
-        require(exchangeRate <= maxExchangeRate, "Exchange rate too high");// Require the exchange rate is below the maximum
-
-        // Calculate the amount of ETH and tokens 
-        uint ethAmount = (eth_reserves * userShare) / total_shares;
-        uint tokenAmount = (token_reserves * userShare) / total_shares;
-        
-        // Require the contract has enough ETH and tokens
-        require(eth_reserves - ethAmount >= 1, "Must leave at least 1 ETH in pool");
-        require(token_reserves - tokenAmount >= 1, "Must leave at least 1 token in pool");
-
-        // Update the contract state
-        payable(msg.sender).transfer(ethAmount);
-        token.transfer(msg.sender, tokenAmount);
-        total_shares -= userShare;
-        lps[msg.sender] = 0;
-        eth_reserves -= ethAmount;
-        token_reserves -= tokenAmount;
-        }
+        uint shareCall = lps[msg.sender];
+        uint ethCall = (shareCall * eth_reserves) / total_shares;
+        removeLiquidity(ethCall, maxExchangeRate, minExchangeRate);
+    }
     /***  Define additional functions for liquidity fees here as needed ***/
 
 
@@ -215,18 +208,16 @@ contract TokenExchange is Ownable {
         uint fee = (amountTokens * swap_fee_numerator) / swap_fee_denominator;
         uint tokenAmountAfterFee = amountTokens - fee;
 
-        uint ethAmount = (eth_reserves * tokenAmountAfterFee) / token_reserves; // Calculate the amount of ETH the user is entitled to
-        uint exchangeRate = (ethAmount * multiplier) / tokenAmountAfterFee; // Calculate the exchange rate
+        uint ethAmount = eth_reserves - (k / tokenAmountAfterFee); // Calculate the amount of ETH the user is entitled to
+        uint exchangeRate = (ethAmount * multiplier * ten_pow_eighteen) / tokenAmountAfterFee; // Calculate the exchange rate
         require(exchangeRate <= maxSlippageRate, "Slippage rate too high");// Require the exchange rate is within the slippage rate
         require(eth_reserves - ethAmount >= 1, "Must leave at least 1 ETH in pool"); // Require the contract has enough ETH reserves
 
         // Update the contract state
-        token.transferFrom(msg.sender, address(this), amountTokens);
-        payable(msg.sender).transfer(ethAmount);
         token_reserves += tokenAmountAfterFee;
         eth_reserves -= ethAmount; 
-
-        // emit Swap(msg.sender, msg.value, ethAmount, true);
+        token.transferFrom(msg.sender, address(this), amountTokens);
+        payable(msg.sender).transfer(ethAmount); // Transfer the ETH to the user
     }
 
 
@@ -244,16 +235,14 @@ contract TokenExchange is Ownable {
         uint fee = (msg.value * swap_fee_numerator) / swap_fee_denominator;
         uint ethAmountAfterFee = msg.value - fee;
 
-        uint tokenAmount = (token_reserves * ethAmountAfterFee) / eth_reserves; // Calculate the amount of tokens the user is entitled to
-        uint exchangeRate = (ethAmountAfterFee * multiplier) / tokenAmount; // Calculate the exchange rate
+        uint tokenAmount = token_reserves - (k / ethAmountAfterFee); // Calculate the amount of tokens the user is entitled to
+        uint exchangeRate = (ethAmountAfterFee * multiplier * ten_pow_eighteen) / tokenAmount; // Calculate the exchange rate
         require(exchangeRate <= maxSlippageRate, "Slippage rate too high");// Require the exchange rate is within the slippage rate
         require(token_reserves - tokenAmount >= 1, "Must leave at least 1 token in pool"); // Condition token
 
-        token.transfer(msg.sender, tokenAmount); // Transfer the tokens to the user
         // Update the contract state
         token_reserves -= tokenAmount; 
         eth_reserves += ethAmountAfterFee;
-
-        // emit Swap(msg.sender, msg.value, tokenAmount, true);
+        token.transfer(msg.sender, tokenAmount); // Transfer the tokens to the user
     }
 }
