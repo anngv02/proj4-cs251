@@ -1,10 +1,10 @@
 Stanford University, CS251 Project 4: Building a DEX
 Authors: Gordon Martinez-Piedra Tao (BS'23, MS'24) under the guidance of Professor Dan Boneh.
-# Token Exchange Project
+# <span style="color: blue;">Token Exchange Project</span>
 
 This project implements a simple token exchange on the Ethereum blockchain, using Hardhat, ethers.js, and OpenZeppelin.
 
-## Description
+## <span style="color: green;">Description</span>
 
 The project includes:
 
@@ -13,7 +13,7 @@ The project includes:
 * **web_app/exchange.js:** JavaScript backend for the web application.
 * **web_app/index.html:** HTML frontend for the web application.
 
-## Setup
+## <span style="color: orange;">Setup</span>
 
 1.  **Install Node.js:**
     * Download and install Node.js (versions V12.xx, 14.xx, or 16.xx are supported).
@@ -39,7 +39,7 @@ The project includes:
 6.  **Install OpenZeppelin Contracts:**
     * Run `npm install --save-dev @openzeppelin/contracts` to install the OpenZeppelin libraries.
 
-## Compile, Deploy, and Test
+## <span style="color: purple;">Compile, Deploy, and Test</span>
 
 1.  **Modify Contracts and Backend:**
     * Modify `contracts/token.sol` and `contracts/exchange.sol` to define your Solidity contracts.
@@ -71,6 +71,6 @@ The project includes:
     * Open `web_app/index.html` in your web browser.
     * You can interact with the page.
 
-## Contributing
+## <span style="color: red;">Contributing</span>
 
 If you'd like to contribute to this project, please create a pull request.
