@@ -23,9 +23,8 @@ The project includes:
         * Open your terminal and navigate to the directory where you want to store the project.
         * Run the following command to clone the project:
             ```bash
-            git clone <git_repo_url>
+            git clone https://github.com/anngv02/proj4-cs251
             ```
-        * Replace `<git_repo_url>` with the Git repository URL of the project.
     * **Manual Download:**
         * Visit the project's GitHub repository page.
         * Click the "Code" button and select "Download ZIP".
